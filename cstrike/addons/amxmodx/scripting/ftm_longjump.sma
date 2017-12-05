@@ -2,16 +2,13 @@
 #include <fakemeta>
 #include <hamsandwich>
 #include <ftmod>
+#include <reapi>
 
-#define MAX_CLIENTS 32
 
 #define PLAYER_SUPERJUMP	7
 #define ACT_LEAP		8
 
-#define m_Activity		73
-#define m_IdealActivity		74
-#define m_afButtonPressed	246
-#define m_fLongJump		356
+
 
 new bool:g_bHasLJ[MAX_CLIENTS + 1];
 new bool:g_bSuperJump[MAX_CLIENTS + 1];
@@ -33,7 +30,7 @@ public plugin_init()
 	register_event("ItemPickup", "CBasePlayerItem__AddToPlayer", "b", "1&item_longjump", 1);
 }
 
-public client_disconnect(id)
+public client_disconnected(id)
 {
 	if(is_user_bot(id) || is_user_hltv(id))
 		return;
@@ -78,7 +75,7 @@ public ftm_client_unfrozen_post(id, rescued)
 		set_pev(pEnt, pev_aiment, id);
 		set_pev(pEnt, pev_rendermode, kRenderNormal);
 
-		set_pdata_int(id, m_fLongJump, 1);
+		set_member(id, m_fLongJump, 1);
 		UTIL__UpdateIconLJ(id, 1, {255, 127, 0});
 	}
 }
@@ -109,12 +106,12 @@ public CBasePlayer__Killed(const victim, const killer, const shouldgib)
 
 public CBasePlayerItem__AddToPlayer(const id)
 {
-	if(pev_valid(id) != 2 || !get_pdata_int(id, m_fLongJump))
+	if(pev_valid(id) != 2 || !get_member(id, m_fLongJump))
 		return;
 
 	new pEnt = g_ClientLJ[id];
 	if(pev_valid(pEnt))
-		set_pev(pEnt, pev_rendermode, kRenderNormal);
+		set_entvar(pEnt, var_rendermode, kRenderNormal);
 
 	else
 	{
@@ -159,14 +156,14 @@ public CBasePlayer__Jump(const id)
 		return HAM_IGNORED;
 	}
 
-	new afButtonPressed = get_pdata_int(id, m_afButtonPressed);
+	new afButtonPressed = get_member(id, m_afButtonPressed);
 	if(!(afButtonPressed & IN_JUMP) || !(iFlags & FL_ONGROUND))
 	{
 		return HAM_IGNORED;
 	}
 
 	new Float:fVecTemp[3];
-	if((pev(id, pev_bInDuck) || iFlags & FL_DUCKING) && get_pdata_int(id, m_fLongJump) && pev(id, pev_button) & IN_DUCK && pev(id, pev_flDuckTime))
+	if((pev(id, pev_bInDuck) || iFlags & FL_DUCKING) && get_member(id, m_fLongJump) && pev(id, pev_button) & IN_DUCK && pev(id, pev_flDuckTime))
 	{
 		pev(id, pev_velocity, fVecTemp);
 
@@ -184,15 +181,15 @@ public CBasePlayer__Jump(const id)
 
 			set_pev(id, pev_velocity, fVecTemp);
 
-			set_pdata_int(id, m_Activity, ACT_LEAP);
-			set_pdata_int(id, m_IdealActivity, ACT_LEAP);
+			set_member(id, m_Activity, ACT_LEAP);
+			set_member(id, m_IdealActivity, ACT_LEAP);
 
 			set_pev(id, pev_oldbuttons, pev(id, pev_oldbuttons) | IN_JUMP);
 
 			set_pev(id, pev_gaitsequence, PLAYER_SUPERJUMP);
 			set_pev(id, pev_frame, 0.0);
 
-			set_pdata_int(id, m_afButtonPressed, afButtonPressed & ~IN_JUMP);
+			set_member(id, m_afButtonPressed, afButtonPressed & ~IN_JUMP);
 
 			g_bSuperJump[id] = true;
 

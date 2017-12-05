@@ -3,7 +3,8 @@
 #include <cstrike>
 #include <fakemeta>
 #include <hamsandwich>
-#include <roundcontrol>
+#include <reapi>
+
 
 #if (AMXX_VERSION_NUM < 183) || defined NO_NATIVE_COLORCHAT
 	#include <colorchat>
@@ -26,7 +27,7 @@
 #define NULL				0
 
 #define PLUGIN				"FrozenTag Mod"
-#define VERSION				"2.95 beta"
+#define VERSION				"2.96-r beta"
 #define AUTHOR				"s1lent"
 
 /*
@@ -184,42 +185,6 @@ new const FROZEN_CUBE[]			= "models/ftmod/icecube_mod.mdl";	// Модель ку
 #define SPEED_BARTIME			((CUBE_HEALTH - MIN_POOL_AMOUNT) / TIME_HAND_DEFORSTING) + 0.75
 #define SPEED_DEFORST			((CUBE_HEALTH - MIN_POOL_AMOUNT) / TIME_DEFORSTING)
 
-#define HIDEHUD_WEAPONS			(1 << 0)
-#define HIDEHUD_FLASHLIGHT		(1 << 1)
-#define HIDEHUD_ALL			(1 << 2)
-#define HIDEHUD_HEALTH			(1 << 3)
-#define HIDEHUD_TIMER			(1 << 4)
-#define HIDEHUD_MONEY			(1 << 5)
-#define HIDEHUD_CROSSHAIR		(1 << 6)
-
-// CBaseMonster::
-const m_LastHitGroup			= 75;
-const m_flNextAttack			= 83;
-
-// CBasePlayer::
-const m_bNotKilled			= 113;
-const m_bJustConnected			= 120;
-const m_iJoiningState			= 121;
-const m_iAccount			= 115;
-const m_iMenu				= 205;
-const m_afButtonPressed			= 246;
-const m_afButtonReleased		= 247;
-//const m_fInitHUD			= 348;
-const m_fDeadTime			= 354;
-const m_iHideHUD			= 361;
-const m_iClientHideHUD			= 362;
-const m_iFov				= 363;
-const m_iNumSpawns			= 365;
-const m_pActiveItem			= 373;
-const m_iDeaths				= 444;
-const m_flStatusBarDisappearDelay	= 450;
-const m_bVGUIMenus			= 510;//(1<<0)
-
-// CBasePlayerItem::
-stock const m_iId			= 43;
-stock const m_iClip			= 51;
-stock const m_iClientWeaponState	= 53;
-stock const m_iWeaponState		= 74;
 
 const PDATA_SAFE = 2;
 
@@ -231,15 +196,7 @@ enum EXTRA_TEAM (<<= 1)
 	ITEM_TEAM_CT
 };
 
-enum _:WeaponState (<<= 1)
-{
-	WPNSTATE_USP_SILENCED = (1<<0),
-	WPNSTATE_GLOCK18_BURST_MODE,
-	WPNSTATE_M4A1_SILENCED,
-	WPNSTATE_ELITE_LEFT,
-	WPNSTATE_FAMAS_BURST_MODE,
-	WPNSTATE_SHIELD_DRAWN,
-};
+
 
 enum JOIN_STATE
 {
@@ -515,7 +472,7 @@ forward csdm_PostDeath(killer, victim, headshot, const weapon[]);
 
 public csdm_PostDeath(killer, victim, headshot, const weapon[])
 {
-	if (get_pgame_int(m_iRoundWinStatus) == 0)
+	if (get_member_game(m_iRoundWinStatus) == 0)
 		g_pPlayerInfo[ victim ][ Player_SpawnLock ] = true;
 
 	/*
@@ -684,7 +641,7 @@ public MessageHook_Money(const msgid, const msgdest, const id)
 
 	new iAccount = g_pPlayerInfo[ id ][ Player_Money ];
 
-	set_pdata_int(id, m_iAccount, iAccount);
+	set_member(id, m_iAccount, iAccount);
 	set_msg_arg_int(1, ARG_LONG, iAccount);
 	set_msg_arg_int(2, ARG_BYTE, 0);
 }
@@ -1011,7 +968,7 @@ stock MenuShop(const id, iPos)
 	else formatex(szBuffer[ iLen ], charsmax(szBuffer) - iLen,"%L", LANG_PLAYER, "FTM_SHOP_MENU_FOOTER_2", LANG_PLAYER, iPos ? "FTM_SHOP_MENU_FOOTER_BACK" : "FTM_SHOP_MENU_FOOTER_EXIT");
 
 	if (pev_valid(id) == PDATA_SAFE)
-		set_pdata_int(id, m_iMenu, 0);
+		set_member(id, m_iMenu, 0);
 
 	return show_menu(id, iBitsKey, szBuffer, -1, "FTMod Menu");
 }
@@ -1052,7 +1009,7 @@ public MenuShop__Handler(const id, const iKey)
 public Event_ResetHUD(const id)
 {
 	if (pev_valid(id) == PDATA_SAFE)
-		set_pdata_int(id, m_iClientHideHUD, 0);
+		set_member(id, m_iClientHideHUD, 0);
 }
 
 public Event_RestartRound()
@@ -1316,8 +1273,8 @@ public CBasePlayer__ObjectCaps_Post(const id)
 	if (g_pPlayerInfo[ id ][ Player_Frozen ])
 		return;
 
-	new afButtonReleased = get_pdata_int(id, m_afButtonReleased);
-	if (!((entity_get_int(id, EV_INT_button) | get_pdata_int(id, m_afButtonPressed) | afButtonReleased) & IN_USE))
+	new afButtonReleased = get_member(id, m_afButtonReleased);
+	if (!((entity_get_int(id, EV_INT_button) | get_member(id, m_afButtonPressed) | afButtonReleased) & IN_USE))
 		return;
 
 	static Float:__flNextUpdateMoney[ MAX_CLIENTS + 1 ] = { 0.0, ... };
@@ -1515,7 +1472,7 @@ public CBaseEntity__TakeDamage(const victim, const idinflictor, const idattacker
 	if (entity_get_int(victim, EV_INT_impulse) != INFOCUBE_UID)
 		return HAM_IGNORED;
 
-	if (idattacker < 1 || idattacker > g_iMaxPlayers || !g_pPlayerInfo[ idattacker ][ Player_Alive ] || get_pgame_int(m_iRoundWinStatus) != 0)
+	if (idattacker < 1 || idattacker > g_iMaxPlayers || !g_pPlayerInfo[ idattacker ][ Player_Alive ] || get_member_game(m_iRoundWinStatus) != 0)
 		return HAM_SUPERCEDE;
 
 	/*
@@ -1561,7 +1518,7 @@ public CBasePlayer__Killed(const victim, const killer, const shouldgib)
 		MESSAGE_BEGIN(MSG_ALL, g_iUserMsg[ Message_ScoreInfo ], _, NULL);
 		WRITE_BYTE(killer);
 		WRITE_SHORT(floatround(entity_get_float(killer, EV_FL_frags)) + 1);
-		WRITE_SHORT(get_pdata_int(killer, m_iDeaths));
+		WRITE_SHORT(get_member(killer, m_iDeaths));
 		WRITE_SHORT(0);
 		WRITE_SHORT(_:g_pPlayerInfo[ victim ][ Player_Teamid ]);
 		MESSAGE_END();
@@ -1571,7 +1528,7 @@ public CBasePlayer__Killed(const victim, const killer, const shouldgib)
 		MESSAGE_BEGIN(MSG_ALL, g_iUserMsg[ Message_DeathMsg ], _, NULL);
 		WRITE_BYTE(killer);
 		WRITE_BYTE(victim);
-		WRITE_BYTE((get_pdata_int(victim, m_LastHitGroup) == HIT_HEAD));
+		WRITE_BYTE((get_member(victim, m_LastHitGroup) == HIT_HEAD));
 		write_string(szWeaponName);
 		MESSAGE_END();
 
@@ -1625,7 +1582,7 @@ public CPointEntity__IceCubeThink(const ent)
 	/*
 	* forcing don't shoots
 	*/
-	set_pdata_float(id, m_flNextAttack, get_gametime() + 1.0);
+	set_member(id, m_flNextAttack, get_gametime() + 1.0);
 
 	flCurrentTime = get_gametime();
 
@@ -1678,7 +1635,7 @@ public CPointEntity__IceCubeThink(const ent)
 	}
 
 	new iMode = entity_get_int(ent, DATA_CUBE_MODE);
-	if (iMode == MODE_CRACK && get_pgame_int(m_iRoundWinStatus) == 0)
+	if (iMode == MODE_CRACK && get_member_game(m_iRoundWinStatus) == 0)
 	{
 		CPlayer__UnFrozen(id, rescuedID);
 		entity_set_int(ent, DATA_CUBE_MODE, MODE_SPAWN);
@@ -1837,12 +1794,12 @@ public CBasePlayer__CS_RoundRespawn(const id)
 	if (g_pPlayerInfo[ id ][ Player_Frozen ])
 		return HAM_IGNORED;
 
-	if (g_pPlayerInfo[ id ][ Player_SpawnLock ] || get_pgame_int(m_iRoundWinStatus) != 0)
+	if (g_pPlayerInfo[ id ][ Player_SpawnLock ] || get_member_game(m_iRoundWinStatus) != 0)
 		return HAM_SUPERCEDE;
 
 #if defined WAIT_TO_NEXT_ROUND
 
-	if (get_pgame_bool(m_bFirstConnected) && get_gametime() > get_pgame_float(m_fRoundCount) + ROUND_WAIT_NEXT)
+	if (get_pgame_bool(m_bFirstConnected) && get_gametime() > get_member_game(m_fRoundCount) + ROUND_WAIT_NEXT)
 		return HAM_SUPERCEDE;
 
 #endif // WAIT_TO_NEXT_ROUND
@@ -1860,19 +1817,19 @@ public CBasePlayer__TraceAttack(victim, idattacker, Float:damage, Float:directio
 */
 public CBasePlayer__ResetMaxSpeed_Post(id)
 {
-	if (pev_valid(id) != PDATA_SAFE || get_pdata_int(id, m_iJoiningState) != 5)
+	if (pev_valid(id) != PDATA_SAFE || get_member(id, m_iJoiningState) != 5)
 		return;
 
 #if defined WAIT_TO_NEXT_ROUND
-	if ((!get_pgame_bool(m_bFirstConnected) || (get_gametime() <= get_pgame_float(m_fRoundCount) + ROUND_WAIT_NEXT)) && g_pPlayerInfo[ id ][ Player_State ] != JOIN_LOCK_SPAWN)
+	if ((!get_pgame_bool(m_bFirstConnected) || (get_gametime() <= get_member_game(m_fRoundCount) + ROUND_WAIT_NEXT)) && g_pPlayerInfo[ id ][ Player_State ] != JOIN_LOCK_SPAWN)
 		return;
 #else
 	if (g_pPlayerInfo[ id ][ Player_State ] != JOIN_LOCK_SPAWN)
 		return;
 #endif // WAIT_TO_NEXT_ROUND
 
-	set_pdata_int(id, m_iNumSpawns, 1);
-	set_pdata_int(id, m_iJoiningState, 0);
+	set_member(id, m_iNumSpawns, 1);
+	set_member(id, m_iJoiningState, 0);
 
 	EnableHamForward(g_pHookTable[ InfoHook_RoundRespawn ]);
 }
@@ -1887,7 +1844,7 @@ public CBasePlayer__Spawn_Pre(const id)
 	/*
 	* The player yet has not entered the game
 	*/
-	if (get_pdata_int(id, m_bJustConnected) & (1 << 0))
+	if (get_member(id, m_bJustConnected) & (1 << 0))
 	{
 		switch(CSaveRestore__ReadData(id))
 		{
@@ -1899,7 +1856,7 @@ public CBasePlayer__Spawn_Pre(const id)
 			g_pPlayerInfo[ id ][ Player_State ] = _:JOIN_IN_TO_SPEC;
 		}
 
-		set_pgame_bool(m_bMapHasBuyZone, true);
+		set_member_game(m_bMapHasBuyZone, true);
 		return HAM_IGNORED;
 	}
 
@@ -1937,7 +1894,7 @@ _jump_loc:
 		return HAM_IGNORED;
 #endif // FROZEN_MOD_API
 
-	if (g_pPlayerInfo[ id ][ Player_Frozen ] && get_pdata_int(id, m_bNotKilled))
+	if (g_pPlayerInfo[ id ][ Player_Frozen ] && get_member(id, m_bNotKilled))
 	{
 		if (g_pPlayerInfo[ id ][ Player_ViewModel ])
 		{
@@ -1954,14 +1911,14 @@ public CBasePlayer__Spawn_Post(const id)
 	if (pev_valid(id) != PDATA_SAFE)
 		return HAM_IGNORED;
 
-	if (get_pdata_int(id, m_bJustConnected) & (1 << 0))
+	if (get_member(id, m_bJustConnected) & (1 << 0))
 	{
 		/*
 		* Spawn on client_putinserver
 		*/
 
-		g_pPlayerInfo[ id ][ Player_VGUI ] = bool:!!(get_pdata_int(id, m_bVGUIMenus) & (1<<0));
-		set_pdata_int(id, m_iHideHUD, get_pdata_int(id, m_iHideHUD) | HIDEHUD_TIMER | HIDEHUD_MONEY);
+		g_pPlayerInfo[ id ][ Player_VGUI ] = bool:!!(get_member(id, m_bVGUIMenus) & (1<<0));
+		set_member(id, m_iHideHUD, get_member(id, m_iHideHUD) | HIDEHUD_TIMER | HIDEHUD_MONEY);
 		return HAM_IGNORED;
 	}
 
@@ -1979,7 +1936,7 @@ public CBasePlayer__Spawn_Post(const id)
 	/*
 	* Disable find buyzone of the nearest spawn
 	*/
-	set_pgame_bool(m_bMapHasBuyZone, true);
+	set_member_game(m_bMapHasBuyZone, true);
 
 	//g_pPlayerInfo[ id ][ Player_Teamid ] = _:cs_get_user_team(id);
 
@@ -2040,12 +1997,12 @@ public CBasePlayer__Spawn_Post(const id)
 	ExecuteForward(g_pForwards[ CLIENT_SPAWN_POST ], g_pResultDummy, id, bIsFrozen);
 #endif // FROZEN_MOD_API
 
-	set_pdata_int(id, m_iHideHUD, get_pdata_int(id, m_iHideHUD) | HIDEHUD_TIMER);
+	set_member(id, m_iHideHUD, get_member(id, m_iHideHUD) | HIDEHUD_TIMER);
 
 	/*
 	* To force call message HideWeapon
 	*/
-	set_pdata_int(id, m_iClientHideHUD, 0);
+	set_member(id, m_iClientHideHUD, 0);
 
 	return HAM_IGNORED;
 }
@@ -2148,150 +2105,14 @@ stock CFTMod__DestroyForwards()
 	}
 }
 
-stock CFTMod__ConditionsCheckWin()
-{
-	if (get_pgame_int(m_iRoundWinStatus) != 0)
-		return 1;
 
-	enum __DATA_BUFFER
-	{
-		Data_Alive,
-		Data_Frozen
-	};
-
-	new pData[ CsTeams ][ __DATA_BUFFER ];
-	for (new i = 1; i <= g_iMaxPlayers; i++)
-	{
-		if (!g_pPlayerInfo[ i ][ Player_Ingame ] || pev_valid(i) != PDATA_SAFE)
-			continue;
-
-		switch ((g_pPlayerInfo[ i ][ Player_Teamid ] = _:cs_get_user_team(i)))
-		{
-			case CS_TEAM_T:
-			{
-				if (g_pPlayerInfo[ i ][ Player_Frozen ])
-					pData[ CS_TEAM_T ][ Data_Frozen ]++;
-
-				else if ((g_pPlayerInfo[ i ][ Player_Alive ] = bool:is_user_alive(i)))
-					pData[ CS_TEAM_T ][ Data_Alive ]++;
-			}
-			case CS_TEAM_CT:
-			{
-				if (g_pPlayerInfo[ i ][ Player_Frozen ])
-					pData[ CS_TEAM_CT ][ Data_Frozen ]++;
-
-				else if ((g_pPlayerInfo[ i ][ Player_Alive ] = bool:is_user_alive(i)))
-					pData[ CS_TEAM_CT ][ Data_Alive ]++;
-			}
-		}
-	}
-
-#if defined FROZEN_MOD_API
-	ExecuteForward(g_pForwards[ SERVER_CONDITIONS ], g_pResultDummy, pData[ CS_TEAM_T ][ Data_Alive ], pData[ CS_TEAM_T ][ Data_Frozen ], pData[ CS_TEAM_T ][ Data_Alive ], pData[ CS_TEAM_T ][ Data_Frozen ]);
-	if (g_pResultDummy == PLUGIN_HANDLED)
-		return 0;
-#endif // FROZEN_MOD_API
-
-	if (pData[ CS_TEAM_T ][ Data_Alive ] > 1 && pData[ CS_TEAM_CT ][ Data_Alive ] > 1)
-		return 0;
-
-	new RoundControlWin:iTeamWin;
-
-	if (pData[ CS_TEAM_T ][ Data_Alive ] > 0 || pData[ CS_TEAM_CT ][ Data_Alive ] > 0)
-	{
-		if (pData[ CS_TEAM_T ][ Data_Alive ] == 0 && pData[ CS_TEAM_T ][ Data_Frozen ])
-			iTeamWin = WINSTATUS_CT;
-
-		else if (pData[ CS_TEAM_CT ][ Data_Alive ] == 0 && pData[ CS_TEAM_CT ][ Data_Frozen ])
-			iTeamWin = WINSTATUS_TERRORIST;
-	}
-	else
-		iTeamWin = WINSTATUS_DRAW;
-
-	if (iTeamWin >= WINSTATUS_CT)
-	{
-		static const szTeamWins[ RoundControlWin ][] =
-		{
-			"", // none
-
-			"FTM_MSG_WIN_CT",
-			"FTM_MSG_WIN_T",
-			"FTM_MSG_WIN_DRAW"
-		};
-
-#if defined FROZEN_MOD_API
-		ExecuteForward(g_pForwards[ SERVER_ROUND_END ], g_pResultDummy, iTeamWin);
-		if (g_pResultDummy == PLUGIN_HANDLED)
-			return 0;
-#endif // FROZEN_MOD_API
-
-		/*
-		* forcing to block everything plugins used with Ham_CS_RoundRespawn
-		* so also from CSDM spawning
-		*/
-		EnableHamForward(g_pHookTable[ InfoHook_RoundRespawn ]);
-		EnableHamForward(g_pHookTable[ InfoHook_TraceAttack ]);
-		DisableHamForward(g_pHookTable[ InfoHook_ObjectCaps ]);
-
-		/*
-		* to block the spawning of new players
-		*/
-		set_pgame_float(m_fRoundCount, -25.0);
-
-		switch (iTeamWin)
-		{
-			case WINSTATUS_DRAW:
-				client_print_color(0, Grey, "%L", LANG_PLAYER, "FTM_WIN_DRAW", PREFIX, LANG_PLAYER, szTeamWins[ WINSTATUS_DRAW ]);
-
-			case WINSTATUS_CT:
-			{
-				client_print_color(0, Blue, "%L", LANG_PLAYER, "FTM_WIN_CT", PREFIX, LANG_PLAYER, szTeamWins[ WINSTATUS_CT ], g_iStats[ CS_TEAM_CT ][ InfoStats_Frozen ], g_iStats[ CS_TEAM_CT ][ InfoStats_Rescued ]);
-				UTIL__GiveMoneyAward(CS_TEAM_CT);
-			}
-			case WINSTATUS_TERRORIST:
-			{
-				client_print_color(0, Red, "%L", LANG_PLAYER, "FTM_WIN_T", PREFIX, LANG_PLAYER, szTeamWins[ WINSTATUS_TERRORIST ], g_iStats[ CS_TEAM_T ][ InfoStats_Frozen ], g_iStats[ CS_TEAM_T ][ InfoStats_Rescued ]);
-				UTIL__GiveMoneyAward(CS_TEAM_T);
-			}
-		}
-
-#if defined DEBUG
-
-		new isCount_T, isCount_CT;
-
-		for (new i = 1; i <= g_iMaxPlayers; i++)
-		{
-			if (!is_user_alive(i))
-				continue;
-
-			if (!g_pPlayerInfo[ i ][ Player_Frozen ])
-			{
-				if (g_pPlayerInfo[ i ][ Player_Teamid ] == CS_TEAM_CT)
-					isCount_CT++;
-
-				else if (g_pPlayerInfo[ i ][ Player_Teamid ] == CS_TEAM_T)
-					isCount_T++;
-			}
-		}
-
-#endif // DEBUG
-
-		RoundEndForceControl(iTeamWin);
-
-		CSaveRestore__Clear();
-		CFTMod__ClearStats();
-
-		return 1;
-	}
-	return 0;
-}
 
 stock CSaveRestore__WriteData(id)
 {
 	/*
 	* If now havent event the end of the round
 	*/
-	if (get_pgame_int(m_iRoundWinStatus) != 0 || !get_pgame_bool(m_bFirstConnected))
+	if (get_member_game(m_iRoundWinStatus) != 0 || !get_member_game(m_bGameStarted))
 		return;
 
 	new bLockSpawn = g_pPlayerInfo[ id ][ Player_SpawnLock ];
@@ -2351,7 +2172,7 @@ stock CSaveRestore__Delete(const id)
 stock CSaveRestore__ReadData(const id)
 {
 	new iRestoreRoundsPlayed = -1;
-	new iCurrentRoundsPlayed = get_pgame_int(m_iTotalRoundsPlayed);
+	new iCurrentRoundsPlayed = get_member_game(m_iTotalRoundsPlayed);
 
 	if (TrieKeyExists(g_gpSaveRestoreCache[ InfoStore_Stay ], g_pPlayerInfo[ id ][ Player_Authid ]))
 	{
@@ -2573,21 +2394,21 @@ stock CPlayer__Frozen(const id, const killer = 0)
 		return;
 
 	new Float:flCurrentTime = get_gametime();
-	new iDeaths = get_pdata_int(id,m_iDeaths) + 1;
+	new iDeaths = get_member(id,m_iDeaths) + 1;
 	new bDucking = !!(entity_get_int(id, EV_INT_flags) & FL_DUCKING);
 
 	if (VectorCompare(g_flLastOrigin[ id ], vecZero))
 		entity_get_vector(id, EV_VEC_origin, g_flLastOrigin[ id ]);
 
-	set_pdata_int(id, m_iFov, 0);
-	set_pdata_int(id, m_iDeaths, iDeaths);
+	set_member(id, m_iFOV, 0);
+	set_member(id, m_iDeaths, iDeaths);
 
 	UTIL__PlayerAllowShoot(id, false);
 
-	new iHideHUD = (get_pdata_int(id, m_iHideHUD) & ~HIDEHUD_TIMER);
+	new iHideHUD = (get_member(id, m_iHideHUD) & ~HIDEHUD_TIMER);
 	iHideHUD |= (HIDEHUD_WEAPONS | HIDEHUD_HEALTH | HIDEHUD_FLASHLIGHT);
 
-	set_pdata_int(id, m_iHideHUD, iHideHUD);
+	set_member(id, m_iHideHUD, iHideHUD);
 	//set_pdata_int(id, m_fInitHUD, 1);
 
 	entity_set_int(id, EV_INT_effects, entity_get_int(id, EV_INT_effects) & ~EF_DIMLIGHT);
@@ -2596,7 +2417,7 @@ stock CPlayer__Frozen(const id, const killer = 0)
 	g_pPlayerInfo[ id ][ Player_WaitAlert ] = _:(flCurrentTime + 5.0);
 #endif // SOUND_HELP_AUTO
 
-	g_pPlayerInfo[ id ][ Player_RoundPlayed ] = get_pgame_int(m_iTotalRoundsPlayed);
+	g_pPlayerInfo[ id ][ Player_RoundPlayed ] = get_member_game(m_iTotalRoundsPlayed);
 
 	MESSAGE_BEGIN(MSG_ALL, g_iUserMsg[ Message_ScoreInfo ], _, NULL);
 	WRITE_BYTE(id);
@@ -2760,7 +2581,7 @@ stock CPlayer__CleanFrozen(const id, bool:bIsKill = false)
 
 	SET_VIEW(id, id);
 
-	if (!bIsKill && g_pPlayerInfo[ id ][ Player_RoundPlayed ] == get_pgame_int(m_iTotalRoundsPlayed))
+	if (!bIsKill && g_pPlayerInfo[ id ][ Player_RoundPlayed ] == get_member_game(m_iTotalRoundsPlayed))
 	{
 		g_pPlayerInfo[ id ][ Player_ProtectTime ] = _:(get_gametime() + TIME_PROTECT_SPAWN);
 
@@ -2837,9 +2658,150 @@ stock CPlayer__UnFrozenProccess(const id, const ent,const Float:vecOrigin[3], co
 	}
 }
 
+stock CFTMod__ConditionsCheckWin()
+{
+	if (get_member_game(m_iRoundWinStatus) != 0)
+		return 1;
+
+	enum __DATA_BUFFER
+	{
+		Data_Alive,
+		Data_Frozen
+	};
+
+	new pData[ CsTeams ][ __DATA_BUFFER ];
+	for (new i = 1; i <= g_iMaxPlayers; i++)
+	{
+		if (!g_pPlayerInfo[ i ][ Player_Ingame ] || pev_valid(i) != PDATA_SAFE)
+			continue;
+
+		switch ((g_pPlayerInfo[ i ][ Player_Teamid ] = _:cs_get_user_team(i)))
+		{
+			case CS_TEAM_T:
+			{
+				if (g_pPlayerInfo[ i ][ Player_Frozen ])
+					pData[ CS_TEAM_T ][ Data_Frozen ]++;
+
+				else if ((g_pPlayerInfo[ i ][ Player_Alive ] = bool:is_user_alive(i)))
+					pData[ CS_TEAM_T ][ Data_Alive ]++;
+			}
+			case CS_TEAM_CT:
+			{
+				if (g_pPlayerInfo[ i ][ Player_Frozen ])
+					pData[ CS_TEAM_CT ][ Data_Frozen ]++;
+
+				else if ((g_pPlayerInfo[ i ][ Player_Alive ] = bool:is_user_alive(i)))
+					pData[ CS_TEAM_CT ][ Data_Alive ]++;
+			}
+		}
+	}
+
+#if defined FROZEN_MOD_API
+	ExecuteForward(g_pForwards[ SERVER_CONDITIONS ], g_pResultDummy, pData[ CS_TEAM_T ][ Data_Alive ], pData[ CS_TEAM_T ][ Data_Frozen ], pData[ CS_TEAM_T ][ Data_Alive ], pData[ CS_TEAM_T ][ Data_Frozen ]);
+	if (g_pResultDummy == PLUGIN_HANDLED)
+		return 0;
+#endif // FROZEN_MOD_API
+
+	if (pData[ CS_TEAM_T ][ Data_Alive ] > 1 && pData[ CS_TEAM_CT ][ Data_Alive ] > 1)
+		return 0;
+
+	new WinStatus:iTeamWin;
+	
+	if (pData[ CS_TEAM_T ][ Data_Alive ] > 0 || pData[ CS_TEAM_CT ][ Data_Alive ] > 0)
+	{
+		if (pData[ CS_TEAM_T ][ Data_Alive ] == 0 && pData[ CS_TEAM_T ][ Data_Frozen ])
+			iTeamWin = WINSTATUS_CTS;
+
+		else if (pData[ CS_TEAM_CT ][ Data_Alive ] == 0 && pData[ CS_TEAM_CT ][ Data_Frozen ])
+			iTeamWin = WINSTATUS_TERRORISTS;
+	}
+	else
+		iTeamWin = WINSTATUS_DRAW;
+
+	if (iTeamWin >= WINSTATUS_CTS)
+	{
+		static const szTeamWins[ WinStatus ][] =
+		{
+			"",
+			"FTM_MSG_WIN_CT",
+			"FTM_MSG_WIN_T",
+			"FTM_MSG_WIN_DRAW"
+		};
+
+#if defined FROZEN_MOD_API
+		ExecuteForward(g_pForwards[ SERVER_ROUND_END ], g_pResultDummy, iTeamWin);
+		if (g_pResultDummy == PLUGIN_HANDLED)
+			return 0;
+#endif // FROZEN_MOD_API
+		
+		
+		/*
+		* forcing to block everything plugins used with Ham_CS_RoundRespawn
+		* so also from CSDM spawning
+		*/
+		//EnableHamForward(g_pHookTable[ InfoHook_RoundRespawn ]);
+		//EnableHamForward(g_pHookTable[ InfoHook_TraceAttack ]);
+		//DisableHamForward(g_pHookTable[ InfoHook_ObjectCaps ]);
+
+		/*
+		* to block the spawning of new players
+		*/
+
+		
+		get_member_game(m_fRoundStartTime, -25.0);
+
+		switch (iTeamWin)
+		{
+			case WINSTATUS_DRAW:
+				client_print_color(0, Grey, "%L", LANG_PLAYER, "FTM_WIN_DRAW", PREFIX, LANG_PLAYER, szTeamWins[ WINSTATUS_DRAW ]);
+
+			case WINSTATUS_CTS:
+			{
+				client_print_color(0, Blue, "%L", LANG_PLAYER, "FTM_WIN_CT", PREFIX, LANG_PLAYER, szTeamWins[ WINSTATUS_CTS ], g_iStats[ CS_TEAM_CT ][ InfoStats_Frozen ], g_iStats[ CS_TEAM_CT ][ InfoStats_Rescued ]);
+				UTIL__GiveMoneyAward(CS_TEAM_CT);
+			}
+			case WINSTATUS_TERRORISTS:
+			{
+				client_print_color(0, Red, "%L", LANG_PLAYER, "FTM_WIN_T", PREFIX, LANG_PLAYER, szTeamWins[ WINSTATUS_TERRORISTS ], g_iStats[ CS_TEAM_T ][ InfoStats_Frozen ], g_iStats[ CS_TEAM_T ][ InfoStats_Rescued ]);
+				UTIL__GiveMoneyAward(CS_TEAM_T);
+			}
+		}
+
+#if defined DEBUG
+
+		new isCount_T, isCount_CT;
+
+		for (new i = 1; i <= g_iMaxPlayers; i++)
+		{
+			if (!is_user_alive(i))
+				continue;
+
+			if (!g_pPlayerInfo[ i ][ Player_Frozen ])
+			{
+				if (g_pPlayerInfo[ i ][ Player_Teamid ] == CS_TEAM_CT)
+					isCount_CT++;
+
+				else if (g_pPlayerInfo[ i ][ Player_Teamid ] == CS_TEAM_T)
+					isCount_T++;
+			}
+		}
+
+#endif // DEBUG
+
+		rg_round_end(1.0, iTeamWin); 
+
+		CSaveRestore__Clear();
+		CFTMod__ClearStats();
+
+		return 1;
+	}
+	return 0;
+	
+}
+
 stock CPlayer__InitStatusBar(id)
 {
-	set_pdata_float(id, m_flStatusBarDisappearDelay, 0.0);
+	set_member(id, m_flStatusBarDisappearDelay, 0.0);
 	__SbarString[ id ][ 0 ] = '\0';
 }
 
@@ -2892,7 +2854,7 @@ stock CPlayer__UpdateStatusBar(id, tracehandle)
 					__newSBarState[ SBAR_ID_TARGETTYPE ] = (g_pPlayerInfo[ id ][ Player_Teamid ] == g_pPlayerInfo[ pOwner ][ Player_Teamid ]) ? SBAR_TARGETTYPE_TEAMMATE : SBAR_TARGETTYPE_ENEMY;
 					__newSBarState[ SBAR_ID_TARGETHEALTH ] = floatround(flHealth / (CUBE_HEALTH - MIN_POOL_AMOUNT) * 100.0);
 
-					set_pdata_float(id, m_flStatusBarDisappearDelay, get_gametime() + 2.0);
+					set_member(id, m_flStatusBarDisappearDelay, get_gametime() + 2.0);
 #if !defined FROZEN_STATUS_TEXT_ENEMIES
 					}
 #endif // FROZEN_STATUS_TEXT_ENEMIES
@@ -2900,7 +2862,7 @@ stock CPlayer__UpdateStatusBar(id, tracehandle)
 			}
 		}
 	}
-	else if (get_pdata_float(id, m_flStatusBarDisappearDelay) > get_gametime())
+	else if (get_member(id, m_flStatusBarDisappearDelay) > get_gametime())
 	{
 		__newSBarState[ SBAR_ID_TARGETTYPE ] = __izSBarState[ id ][ SBAR_ID_TARGETTYPE ];
 		__newSBarState[ SBAR_ID_TARGETNAME ] = __izSBarState[ id ][ SBAR_ID_TARGETNAME ];
@@ -2980,7 +2942,7 @@ stock UTIL__GiveMoneyAward(const CsTeams:iTeamWin)
 		* Remove all items on next spawn
 		*/
 		if (teamID != iTeamWin)
-			set_pdata_int(i, m_bNotKilled, 0);
+			set_member(i, m_bNotKilled, 0);
 
 		//set_pdata_int(i, m_iAccount, g_pPlayerInfo[ i ][ Player_Money ]);
 	}
@@ -3079,7 +3041,7 @@ stock UTIL__CreateBody(const id, const bDucking)
 	entity_set_float(pEnt, EV_FL_frame, AnimationsData[ frameExt ][ Animation_Frame ]);
 	entity_set_int(pEnt, EV_INT_sequence, AnimationsData[ frameExt ][ Animation_Number ]);
 
-	if (get_pdata_int(id, m_LastHitGroup) == HIT_HEAD)
+	if (get_member(id, m_LastHitGroup) == HIT_HEAD)
 	{
 		vecAngle[ 1 ] -= random_float(10.0, 20.0);
 		vecAngle[ 2 ] += random_float(10.0, 20.0);
@@ -3267,7 +3229,7 @@ stock UTIL__GetWeaponByKiller(pKiller, pInflictor, szBuffer[], iLen)
 
 stock UTIL__AddAccount(const id, const iAmount, const bTrackChange = 1)
 {
-	set_pdata_int(id, m_iAccount, iAmount);
+	set_member(id, m_iAccount, iAmount);
 
 	MESSAGE_BEGIN(MSG_ONE, g_iUserMsg[ Message_Money ], _, id);
 	WRITE_LONG(iAmount);
@@ -3405,12 +3367,12 @@ stock UTIL__DestroyShopMenu(const id)
 
 stock UTIL__PlayerAllowShoot(const id, bool:bAllow = true)
 {
-	new pActiveItem = get_pdata_cbase(id, m_pActiveItem);
+	new pActiveItem = get_member(id, m_pActiveItem);
 
 	if (pev_valid(pActiveItem) != PDATA_SAFE)
 		return;
 
-	new iBitsum = get_pdata_int(pActiveItem, m_iWeaponState);
+	new WeaponState:iBitsum = get_member(pActiveItem, m_Weapon_iWeaponState);
 	if (!bAllow)
 	{
 		if (iBitsum & WPNSTATE_SHIELD_DRAWN)
@@ -3421,7 +3383,7 @@ stock UTIL__PlayerAllowShoot(const id, bool:bAllow = true)
 	else
 		iBitsum &= ~WPNSTATE_SHIELD_DRAWN;
 
-	set_pdata_int(pActiveItem, m_iWeaponState, iBitsum);
+	set_member(pActiveItem, m_Weapon_iWeaponState, iBitsum);
 }
 
 stock UTIL__CreateWeather()

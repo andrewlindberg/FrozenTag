@@ -4,11 +4,6 @@
 
 #define _ftmod_included
 
-#tryinclude <roundcontrol>
-
-#if !defined _roundcontrol_included
-	#assert "Required AMXX module RoundControl for plugin!"
-#endif
 
 #define INFOTARGET_UID		1493276213	// ID entity info_target on impulse every entity owner 
 #define INFOCUBE_UID		1248121937	// ID entity info_target on impulse entity ICE cube

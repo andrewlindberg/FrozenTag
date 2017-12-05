@@ -1,6 +1,8 @@
 #include <amxmodx>
 #include <engine>
 #include <ftmod>
+#include <reapi>
+
 #if (AMXX_VERSION_NUM < 183) || defined NO_NATIVE_COLORCHAT
 	#include <dhudmessage>
 #endif
@@ -79,7 +81,7 @@ public plugin_init()
 	register_dictionary("ftmod_ticket.txt");
 }
 
-public client_disconnect(id)
+public client_disconnected(id)
 {
 	if (is_user_bot(id) || is_user_hltv(id))
 		return;
@@ -200,7 +202,7 @@ public ftm_client_spawn(id, iTeam)
 		UTIL__MakingDeath(id);
 	}
 
-	else if (get_pgame_bool(m_bFirstConnected) && ftm_get_play_round(id) == get_pgame_int(m_iTotalRoundsPlayed))
+	else if (get_member_game(m_bGameStarted) && ftm_get_play_round(id) == get_member_game(m_iTotalRoundsPlayed))
 	{
 		iTicketNum = --g_iTicketNum[ iTeam ];
 
@@ -241,7 +243,7 @@ public ftm_client_spawn(id, iTeam)
 				}
 			}
 
-			if (iTicketNum < 1 && ftm_get_frozen(i) && get_pgame_bool(m_bFirstConnected))
+			if (iTicketNum < 1 && ftm_get_frozen(i) && get_member_game(m_bGameStarted))
 			{
 				new pEntCube;
 
