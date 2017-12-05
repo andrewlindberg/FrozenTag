@@ -1,0 +1,5 @@
+[ru]
+FTM_TICKET_UNFREEZE = Вы не можете разморозить союзников.^nУ вашей команды кончились билеты.
+
+[en]
+FTM_TICKET_UNFREEZE = You can't unfreeze teammates.^nNot enough tickets for your team
